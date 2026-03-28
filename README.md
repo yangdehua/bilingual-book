@@ -1,5 +1,7 @@
 # bilingual-book 📖
 
+[中文说明](README_CN.md)
+
 Turn any English book or article into a bilingual English-Chinese edition — one paragraph English, one paragraph Chinese — ready to import into reading apps like WeChat Read (微信读书).
 
 ## Two Ways to Use
