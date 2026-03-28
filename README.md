@@ -2,84 +2,49 @@
 
 Turn any English book or article into a bilingual English-Chinese edition — one paragraph English, one paragraph Chinese — ready to import into reading apps like WeChat Read (微信读书).
 
-## What it does
+## Two Ways to Use
 
+### 1. As a Claude Code Skill (Recommended)
+
+Claude does the translation directly — no API key needed. Just install the skill and tell Claude what to convert.
+
+**Install:**
+```bash
+# Clone into your Claude Code skills directory
+git clone https://github.com/yangdehua/bilingual-book.git ~/.claude/skills/bilingual-book
 ```
-English EPUB/URL/PDF  →  Bilingual EPUB or PDF
-                          with paragraph-by-paragraph translation
+
+**Use:**
+```
+# In Claude Code, just say:
+> 把这本书做成双语对照版 /path/to/book.epub
+> Make this article bilingual https://example.com/article
+> /bilingual-book
 ```
 
-**Input:** EPUB, URL, PDF, or plain text
-**Output:** EPUB (for reading apps) or PDF (with bookmarks & navigation)
-**Translation:** Anthropic Claude or OpenAI GPT-4o
+Claude will:
+1. Extract content from your EPUB/URL/PDF
+2. Translate everything using parallel agents (Claude itself is the translator)
+3. Generate EPUB or PDF with full TOC navigation
 
-## Quick Start
+**How it works internally:**
+- `SKILL.md` — Instructions that tell Claude how to do the conversion
+- `generate.py` — Script Claude calls to produce the final EPUB/PDF
+- Translation is done by Claude's own agents in parallel (~400 lines per agent)
+- No external API calls, no extra cost beyond your Claude Code subscription
+
+### 2. As a Standalone CLI Tool
+
+For automation or use outside Claude Code. Calls Anthropic/OpenAI API for translation.
 
 ```bash
 pip install -r requirements.txt
+export ANTHROPIC_API_KEY=sk-ant-...  # or OPENAI_API_KEY
 
-# EPUB → bilingual EPUB (ready for WeChat Read)
-python bilingual_book.py book.epub
-
-# Web article → bilingual EPUB
-python bilingual_book.py https://example.com/great-article
-
-# EPUB → bilingual PDF with bookmarks
-python bilingual_book.py book.epub --format pdf
-
-# Use OpenAI instead of Anthropic
-python bilingual_book.py book.epub --provider openai
-```
-
-## Setup
-
-1. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-2. Install pandoc (for EPUB extraction):
-```bash
-# macOS
-brew install pandoc
-
-# Ubuntu/Debian
-sudo apt install pandoc
-```
-
-3. Set your API key:
-```bash
-# Anthropic (default)
-export ANTHROPIC_API_KEY=sk-ant-...
-
-# Or OpenAI
-export OPENAI_API_KEY=sk-...
-```
-
-## Examples
-
-### Book → WeChat Read
-
-```bash
-python bilingual_book.py "The_Book_of_Elon.epub"
-# Output: The_Book_of_Elon_bilingual.epub
-# Import to WeChat Read → enjoy bilingual reading
-```
-
-### Blog post → EPUB
-
-```bash
-python bilingual_book.py https://www.anthropic.com/engineering/some-article
-# Output: some_article_bilingual.epub
-```
-
-### With custom title & author
-
-```bash
-python bilingual_book.py book.epub \
-  --title "The Book of Elon" \
-  --author "Eric Jorgenson" \
-  --format pdf
+python bilingual_book.py book.epub                     # → bilingual EPUB
+python bilingual_book.py book.epub --format pdf        # → bilingual PDF
+python bilingual_book.py https://example.com/article   # URL → EPUB
+python bilingual_book.py book.epub --provider openai   # Use GPT-4o
 ```
 
 ## Output Format
@@ -88,44 +53,57 @@ Each paragraph appears as:
 
 > **English original text here.**
 >
-> <span style="color: gray">中文翻译在这里。</span>
+> <span style="color:gray">中文翻译在这里。</span>
 
-Key quotes are highlighted in color. Chapters and parts have proper navigation/bookmarks.
+Key quotes highlighted in color. Full chapter navigation / bookmarks.
 
-## How it works
+## Output Examples
 
-1. **Extract** — Pulls text from EPUB (pandoc), URL (trafilatura), or PDF (pdfplumber)
-2. **Classify** — Identifies parts, chapters, highlights, questions, and regular text
-3. **Translate** — Sends batches to Claude/GPT-4o for natural Chinese translation
-4. **Generate** — Creates EPUB with TOC or PDF with bookmarks
+| Format | Features | Best for |
+|--------|----------|----------|
+| EPUB | TOC navigation, reflowable text | WeChat Read, Apple Books, Kindle |
+| PDF | Bookmarks, fixed layout, CJK fonts | Print, desktop reading |
 
-## Options
+## Architecture
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-f`, `--format` | Output format: `epub` or `pdf` | `epub` |
-| `-o`, `--output` | Output file path | auto-generated |
-| `-t`, `--title` | Book title | auto-detected |
-| `-a`, `--author` | Author name | — |
-| `--provider` | `anthropic` or `openai` | `anthropic` |
-| `--batch-size` | Paragraphs per API call | `20` |
-| `--api-key` | API key (or use env var) | — |
+```
+bilingual-book/
+├── SKILL.md             # Claude Code skill (instructions for Claude)
+├── generate.py          # EPUB/PDF generator (called by skill or standalone)
+├── bilingual_book.py    # Standalone CLI tool (with API translation)
+├── requirements.txt     # Python dependencies
+└── README.md
+```
 
-## Cost Estimate
+**Skill mode** (Claude Code):
+```
+User input → Claude extracts text → Claude agents translate in parallel
+           → generate.py produces EPUB/PDF
+```
 
-Translation cost depends on book length:
-
-| Book size | ~Paragraphs | Anthropic (Sonnet) | OpenAI (GPT-4o) |
-|-----------|------------|-------------------|-----------------|
-| Article | 50 | ~$0.10 | ~$0.15 |
-| Short book | 500 | ~$1.00 | ~$1.50 |
-| Full book | 1500 | ~$3.00 | ~$4.50 |
+**CLI mode** (standalone):
+```
+User input → bilingual_book.py extracts text → API translates in batches
+           → bilingual_book.py produces EPUB/PDF
+```
 
 ## Requirements
 
 - Python 3.8+
-- pandoc (for EPUB input)
-- Anthropic or OpenAI API key
+- `pandoc` (for EPUB extraction): `brew install pandoc` / `apt install pandoc`
+- `pip install ebooklib` (for EPUB output)
+- `pip install reportlab` (for PDF output)
+- For CLI mode: `pip install anthropic` or `pip install openai`
+
+## Cost Estimate (CLI mode only)
+
+| Size | Paragraphs | Anthropic Sonnet | OpenAI GPT-4o |
+|------|-----------|-----------------|---------------|
+| Article | ~50 | ~$0.10 | ~$0.15 |
+| Short book | ~500 | ~$1.00 | ~$1.50 |
+| Full book | ~1500 | ~$3.00 | ~$4.50 |
+
+Skill mode: included in your Claude Code subscription.
 
 ## License
 
