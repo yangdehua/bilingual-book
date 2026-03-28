@@ -1,0 +1,5 @@
+anthropic>=0.40.0
+ebooklib>=0.18
+reportlab>=4.0
+trafilatura>=1.12.0
+pdfplumber>=0.11.0
